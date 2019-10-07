@@ -38,7 +38,9 @@ pub struct LabyrinthScene {
 	player_acceleration: f32,
 	player_direction: Vector2,
 	player_light_radius: f32,
+
 	are_doors_activated: bool,
+	entered_door: bool,
 
 	dispatcher: specs::Dispatcher<'static, 'static>,
 }
@@ -71,7 +73,9 @@ impl LabyrinthScene {
 			player_acceleration: 0.0,
 			player_direction: Vector2::zero(),
 			player_light_radius: 100.0,
+
 			are_doors_activated: true,
+			entered_door: false,
 
 			dispatcher,
 		}
@@ -416,7 +420,15 @@ impl LabyrinthScene {
 
 		for point in points.iter() {
 			if let Some(wall) = self.get_tile_by_point(world, context, *point) {
-				if wall != resources::Wall::N {
+				if wall.is_door() {
+					if self.are_doors_activated {
+						self.entered_door = true;
+					}
+					else {
+						return true;
+					}
+				}
+				else if wall.is_wall() {
 					return true;
 				}
 			}
@@ -574,6 +586,10 @@ impl scene::Scene<World, input::Event> for LabyrinthScene {
 			.expect("Failed to move player...");
 
 		if self.quit {
+			scene::SceneSwitch::Pop
+		}
+		else if self.entered_door {
+			// TODO: Transition to next level.
 			scene::SceneSwitch::Pop
 		}
 		else {
