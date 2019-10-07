@@ -1,5 +1,6 @@
 use crate::components as c;
 use crate::input;
+use crate::lighting::{TileLightTracing};
 use crate::resources;
 use crate::scenes;
 use crate::systems::*;
@@ -11,8 +12,8 @@ use ggez;
 use ggez_goodies::scene;
 use log::{debug, info, warn};
 use specs::{self, Join};
-use warmy;
 use std::f32::consts::PI;
+use warmy;
 
 const WALL_SIZE: f32 = 32.0;
 const PLAYER_WIDTH: f32 = 16.0;
@@ -37,6 +38,7 @@ pub struct LabyrinthScene {
 	player_acceleration: f32,
 	player_direction: Vector2,
 	player_light_radius: f32,
+	are_doors_activated: bool,
 
 	dispatcher: specs::Dispatcher<'static, 'static>,
 }
@@ -69,6 +71,7 @@ impl LabyrinthScene {
 			player_acceleration: 0.0,
 			player_direction: Vector2::zero(),
 			player_light_radius: 100.0,
+			are_doors_activated: true,
 
 			dispatcher,
 		}
@@ -93,443 +96,42 @@ impl LabyrinthScene {
 		Point2::new(x, y)
 	}
 
-	fn draw_level(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
-		let offset = self.get_level_offset(world);
-		let level = &self.level.borrow();
+	// fn draw_level(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
+	// 	let offset = self.get_level_offset(world);
+	// 	let level = &self.level.borrow();
 
-		for i in 0..level.width {
-			for j in 0..level.height {
-				match level.get(i, j) {
-					resources::Wall::N => {},
-					resources::Wall::S => {
-						let x = offset.x + i as f32 * WALL_SIZE;
-						let y = offset.y + j as f32 * WALL_SIZE;
+	// 	for i in 0..level.width {
+	// 		for j in 0..level.height {
+	// 			match level.get(i, j) {
+	// 				resources::Wall::N => {},
+	// 				resources::Wall::S => {
+	// 					let x = offset.x + i as f32 * WALL_SIZE;
+	// 					let y = offset.y + j as f32 * WALL_SIZE;
 
-						graphics::draw(
-							context,
-							&self.tiles.tile_up[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(x, y))
-						)?;
+	// 					graphics::draw(
+	// 						context,
+	// 						&self.tiles.tile_up[0].borrow().0,
+	// 						graphics::DrawParam::default()
+	// 							.dest(Point2::new(x, y))
+	// 					)?;
 
-						graphics::draw(
-							context,
-							&self.tiles.tile_down[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(x, y))
-						)?;
-					},
-				};
-			}
-		}
+	// 					graphics::draw(
+	// 						context,
+	// 						&self.tiles.tile_down[0].borrow().0,
+	// 						graphics::DrawParam::default()
+	// 							.dest(Point2::new(x, y))
+	// 					)?;
+	// 				},
+	// 				// TODO: Draw doors.
+	// 				_ => {},
+	// 			};
+	// 		}
+	// 	}
 
-		Ok(())
-	}
+	// 	Ok(())
+	// }
 
 	fn draw_light(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
-		const SEGMENT_COUNT: usize = 8;
-
-		#[derive(Debug)]
-		struct SegmentPalette {
-			palette: [bool; SEGMENT_COUNT],
-		}
-
-		impl SegmentPalette {
-			fn new(segment_hits: &[usize; SEGMENT_COUNT]) -> Self {
-				let palette: [bool; SEGMENT_COUNT] =
-				[
-					// segment_hits[0] > 0, segment_hits[1] > 0, segment_hits[2] > 0,
-					// segment_hits[7] > 0,                      segment_hits[3] > 0,
-					// segment_hits[6] > 0, segment_hits[5] > 0, segment_hits[4] > 0,
-
-					segment_hits[0] > 0,
-					segment_hits[1] > 0,
-					segment_hits[2] > 0,
-					segment_hits[3] > 0,
-					segment_hits[4] > 0,
-					segment_hits[5] > 0,
-					segment_hits[6] > 0,
-					segment_hits[7] > 0,
-				];
-
-				Self {
-					palette,
-				}
-			}
-
-			fn is_up(&self) -> bool {
-				let p = self.palette;
-
-				false
-					|| (p[0] && p[1] && !p[2])
-					|| (p[0] && !p[1] && p[2])
-					|| (!p[0] && p[1] && !p[2])
-					|| (!p[0] && p[1] && p[2])
-					|| (p[0] && p[1] && p[2])
-			}
-
-			fn is_right(&self) -> bool {
-				let p = self.palette;
-
-				false
-					|| (p[2] && p[3] && !p[4])
-					|| (p[2] && !p[3] && p[4])
-					|| (!p[2] && p[3] && !p[4])
-					|| (!p[2] && p[3] && p[4])
-					|| (p[2] && p[3] && p[4])
-			}
-
-			fn is_down(&self) -> bool {
-				let p = self.palette;
-
-				false
-					|| (p[6] && p[5] && !p[4])
-					|| (p[6] && !p[5] && p[4])
-					|| (!p[6] && p[5] && !p[4])
-					|| (!p[6] && p[5] && p[4])
-					|| (p[6] && p[5] && p[4])
-			}
-
-			fn is_left(&self) -> bool {
-				let p = self.palette;
-
-				false
-					|| (p[0] && p[7] && !p[6])
-					|| (p[0] && !p[7] && p[6])
-					|| (!p[0] && p[7] && !p[6])
-					|| (!p[0] && p[7] && p[6])
-					|| (p[0] && p[7] && p[6])
-			}
-
-			fn is_corner0(&self) -> bool {
-				self.palette[0]
-			}
-
-			fn is_corner1(&self) -> bool {
-				self.palette[2]
-			}
-
-			fn is_corner2(&self) -> bool {
-				self.palette[4]
-			}
-
-			fn is_corner3(&self) -> bool {
-				self.palette[6]
-			}
-		}
-
-		#[derive(Debug)]
-		enum TileLightState {
-			None,
-			Up,
-			Right,
-			Down,
-			Left,
-			UpLeftSmall,
-			UpRightSmall,
-			DownLeftSmall,
-			DownRightSmall,
-			UpLeftBig,
-			UpRightBig,
-			DownLeftBig,
-			DownRightBig,
-			Full,
-		}
-
-		#[derive(Debug)]
-		struct TileLightTracing {
-			tile_id: usize,
-			rect: Rect,
-			hits: usize,
-			segment_hits: [usize; SEGMENT_COUNT],
-		}
-
-		impl TileLightTracing {
-			fn new(tile_id: usize, position: Point2, width: f32, height: f32) -> Self {
-				let rect = Rect::new(
-					position.x - width / 2.0,
-					position.y - height / 2.0,
-					width,
-					height,
-				);
-
-				Self {
-					tile_id,
-					rect,
-					hits: 0,
-					segment_hits: [0; SEGMENT_COUNT],
-				}
-			}
-
-			fn find_intersection_mut(tiles: &mut Vec<Self>, point: Point2) -> Option<&mut Self> {
-				for tile in tiles.iter_mut() {
-					if tile.rect.contains(point) {
-						return Some(tile);
-					}
-				}
-
-				None
-			}
-
-			fn register_hit(&mut self, point: Point2) {
-				self.hits += 1;
-
-				let w = self.rect.w / 3.0;
-				let h = self.rect.h / 3.0;
-
-				for (segment_id, hit_count) in self.segment_hits.iter_mut().enumerate() {
-					let (x, y) = match segment_id {
-						0 => (self.rect.x + w * 0.0, self.rect.y + h * 0.0),
-						1 => (self.rect.x + w * 1.0, self.rect.y + h * 0.0),
-						2 => (self.rect.x + w * 2.0, self.rect.y + h * 0.0),
-						3 => (self.rect.x + w * 2.0, self.rect.y + h * 1.0),
-						4 => (self.rect.x + w * 2.0, self.rect.y + h * 2.0),
-						5 => (self.rect.x + w * 1.0, self.rect.y + h * 2.0),
-						6 => (self.rect.x + w * 0.0, self.rect.y + h * 2.0),
-						7 => (self.rect.x + w * 0.0, self.rect.y + h * 1.0),
-						_ => panic!("Invalid segment_id!"),
-					};
-
-					let segment = Rect::new(x, y, w, h);
-					if segment.contains(point) {
-						*hit_count += 1;
-						break;
-					}
-				}
-			}
-
-			fn set_origin(tiles: &mut Vec<Self>, origin: Point2) {
-				for tile in tiles.iter_mut() {
-					tile.rect.x -= origin.x;
-					tile.rect.y -= origin.y;
-				}
-			}
-
-			fn get_light_state(&self) -> TileLightState {
-				use TileLightState::*;
-
-				if self.hits == 0 {
-					return None;
-				}
-
-				let palette = SegmentPalette::new(&self.segment_hits);
-
-				let up = palette.is_up();
-				let right = palette.is_right();
-				let down = palette.is_down();
-				let left = palette.is_left();
-
-
-				if up && !right && !down && !left {
-					return Up;
-				}
-				if !up && right && !down && !left {
-					return Right;
-				}
-				if !up && !right && down && !left {
-					return Down;
-				}
-				if !up && !right && !down && left {
-					return Left;
-				}
-
-				if up && right && !down && !left {
-					return UpRightBig;
-				}
-				if !up && right && down && !left {
-					return DownRightBig;
-				}
-				if !up && !right && down && left {
-					return DownLeftBig;
-				}
-				if up && !right && !down && left {
-					return UpLeftBig;
-				}
-
-				if up && !right && down && !left {
-					return Full;
-				}
-				if !up && right && !down && left {
-					return Full;
-				}
-
-				let c0 = palette.is_corner0();
-				let c1 = palette.is_corner1();
-				let c2 = palette.is_corner2();
-				let c3 = palette.is_corner3();
-
-				if c0 && !c1 && !c2 && !c3 {
-					return UpLeftSmall;
-				}
-				if !c0 && c1 && !c2 && !c3 {
-					return UpRightSmall;
-				}
-				if !c0 && !c1 && c2 && !c3 {
-					return DownRightSmall;
-				}
-				if !c0 && !c1 && !c2 && c3 {
-					return DownLeftSmall;
-				}
-
-				if c0 && !c1 && c2 && !c3 {
-					return Full;
-				}
-				if !c0 && c1 && !c2 && c3 {
-					return Full;
-				}
-
-				None
-			}
-
-			fn draw(&self, context: &mut ggez::Context, tiles: &resources::TilePack) -> ggez::GameResult<()> {
-				let state = self.get_light_state();
-
-				match state {
-					TileLightState::None => {},
-					TileLightState::Up => {
-						graphics::draw(
-							context,
-							&tiles.tile_up[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::Right => {
-						graphics::draw(
-							context,
-							&tiles.tile_up[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(90.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::Down => {
-						graphics::draw(
-							context,
-							&tiles.tile_down[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::Left => {
-						graphics::draw(
-							context,
-							&tiles.tile_down[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(90.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-								// .color(graphics::Color::new(0.0, 0.0, 0.0, 1.0))
-						)?;
-					},
-					TileLightState::UpLeftSmall => {
-						graphics::draw(
-							context,
-							&tiles.corner_s[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(90.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::UpRightSmall => {
-						graphics::draw(
-							context,
-							&tiles.corner_s[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(180.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::DownLeftSmall => {
-						graphics::draw(
-							context,
-							&tiles.corner_s[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::DownRightSmall => {
-						graphics::draw(
-							context,
-							&tiles.corner_s[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(270.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::UpLeftBig => {
-						graphics::draw(
-							context,
-							&tiles.corner_b[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(270.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::UpRightBig => {
-						graphics::draw(
-							context,
-							&tiles.corner_b[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::DownLeftBig => {
-						graphics::draw(
-							context,
-							&tiles.corner_b[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(180.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::DownRightBig => {
-						graphics::draw(
-							context,
-							&tiles.corner_b[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.rotation(90.0 * PI / 180.0)
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-					TileLightState::Full => {
-						graphics::draw(
-							context,
-							&tiles.tile_up[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-
-						graphics::draw(
-							context,
-							&tiles.tile_down[0].borrow().0,
-							graphics::DrawParam::default()
-								.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
-								.offset(Point2::new(0.5, 0.5))
-						)?;
-					},
-				};
-
-				Ok(())
-			}
-		}
-
-		//
-		//
-		//
-
 		// select tiles that are in player's radius
 		let mut target_tiles = {
 			let offset = self.get_level_offset(world);
@@ -539,7 +141,12 @@ impl LabyrinthScene {
 
 			for i in 0..level.width {
 				for j in 0..level.height {
-					if level.get(i, j) == resources::Wall::N {
+					if level.get(i, j).is_door() {
+						if self.are_doors_activated {
+							continue;
+						}
+					}
+					else if level.get(i, j).is_empty() {
 						continue;
 					}
 
@@ -827,6 +434,54 @@ impl LabyrinthScene {
 		}
 	}
 
+	fn draw_doors(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
+		if !self.are_doors_activated {
+			return Ok(());
+		}
+
+		let offset = self.get_level_offset(world);
+		let level = &self.level.borrow();
+
+		for i in 0..level.width {
+			for j in 0..level.height {
+				let tile = level.get(i, j);
+				if !tile.is_door() {
+					continue;
+				}
+
+				let position = Point2::new(
+					offset.x + i as f32 * WALL_SIZE + WALL_SIZE / 2.0,
+					offset.y + j as f32 * WALL_SIZE + WALL_SIZE / 2.0,
+				);
+
+				let (rotate, image) = match tile {
+					resources::Wall::B0H => ( 0.0, &self.tiles.door_2_0),
+					resources::Wall::B1H => ( 0.0, &self.tiles.door_2_1),
+					resources::Wall::B0V => (90.0, &self.tiles.door_2_0),
+					resources::Wall::B1V => (90.0, &self.tiles.door_2_1),
+					resources::Wall::D0H => ( 0.0, &self.tiles.door_3_0),
+					resources::Wall::D1H => ( 0.0, &self.tiles.door_3_1),
+					resources::Wall::D2H => ( 0.0, &self.tiles.door_3_2),
+					resources::Wall::D0V => (90.0, &self.tiles.door_3_0),
+					resources::Wall::D1V => (90.0, &self.tiles.door_3_1),
+					resources::Wall::D2V => (90.0, &self.tiles.door_3_2),
+					_ => panic!("tile {:?} isn't a door!", tile),
+				};
+
+				graphics::draw(
+					context,
+					&image.borrow().0,
+					graphics::DrawParam::default()
+						.dest(position)
+						.rotation(rotate * PI / 180.0)
+						.offset(Point2::new(0.5, 0.5))
+				)?;
+			}
+		}
+
+		Ok(())
+	}
+
 	// fn check_wall_collision_old(&mut self, _world: &mut World, context: &mut ggez::Context, object: Rect) -> ggez::GameResult<bool> {
 	// 	let offset = self.get_level_offset(context);
 
@@ -928,7 +583,8 @@ impl scene::Scene<World, input::Event> for LabyrinthScene {
 
 	fn draw(&mut self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
 		// self.draw_level(world, context)?;
-		self.draw_light(world, context);
+		self.draw_light(world, context)?;
+		self.draw_doors(world, context)?;
 		self.draw_player(context)?;
 
 		Ok(())
@@ -984,12 +640,4 @@ impl scene::Scene<World, input::Event> for LabyrinthScene {
 		// // new Point2
 		// // try moving
 	}
-}
-
-//
-//
-//
-
-struct TileTracing {
-	//
 }

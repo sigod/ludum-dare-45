@@ -7,6 +7,7 @@ use ggez::{self, *};
 
 mod components;
 mod input;
+mod lighting;
 mod resources;
 mod scenes;
 mod systems;

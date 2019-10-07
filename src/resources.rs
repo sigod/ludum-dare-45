@@ -81,8 +81,77 @@ impl warmy::Load<ggez::Context, ResourceKey> for Image {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum Wall {
+	// None, nothing, empty.
 	N,
+	// Solid wall.
 	S,
+	// Horizontal 2x1 door.
+	B0H,
+	B1H,
+	// Vertical 2x1 door.
+	B0V,
+	B1V,
+	// Horizontal 3x1 door.
+	D0H,
+	D1H,
+	D2H,
+	// Vertical 3x1 door.
+	D0V,
+	D1V,
+	D2V,
+}
+
+impl Wall {
+	pub fn is_empty(&self) -> bool {
+		match self {
+			Self::N => true,
+			Self::S => false,
+			Self::B0H => false,
+			Self::B1H => false,
+			Self::B0V => false,
+			Self::B1V => false,
+			Self::D0H => false,
+			Self::D1H => false,
+			Self::D2H => false,
+			Self::D0V => false,
+			Self::D1V => false,
+			Self::D2V => false,
+		}
+	}
+
+	pub fn is_wall(&self) -> bool {
+		match self {
+			Self::N => false,
+			Self::S => true,
+			Self::B0H => false,
+			Self::B1H => false,
+			Self::B0V => false,
+			Self::B1V => false,
+			Self::D0H => false,
+			Self::D1H => false,
+			Self::D2H => false,
+			Self::D0V => false,
+			Self::D1V => false,
+			Self::D2V => false,
+		}
+	}
+
+	pub fn is_door(&self) -> bool {
+		match self {
+			Self::N => false,
+			Self::S => false,
+			Self::B0H => true,
+			Self::B1H => true,
+			Self::B0V => true,
+			Self::B1V => true,
+			Self::D0H => true,
+			Self::D1H => true,
+			Self::D2H => true,
+			Self::D0V => true,
+			Self::D1V => true,
+			Self::D2V => true,
+		}
+	}
 }
 
 pub struct TilePack {
@@ -90,6 +159,11 @@ pub struct TilePack {
 	pub tile_down: Vec<warmy::Res<Image>>,
 	pub corner_s: Vec<warmy::Res<Image>>,
 	pub corner_b: Vec<warmy::Res<Image>>,
+	pub door_2_0: warmy::Res<Image>,
+	pub door_2_1: warmy::Res<Image>,
+	pub door_3_0: warmy::Res<Image>,
+	pub door_3_1: warmy::Res<Image>,
+	pub door_3_2: warmy::Res<Image>,
 }
 
 impl TilePack {
@@ -127,11 +201,33 @@ impl TilePack {
 			corner_s.push(tile);
 		}
 
+		let door_2_0 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/doors/door-2-0.png"), context)
+			.unwrap();
+		let door_2_1 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/doors/door-2-1.png"), context)
+			.unwrap();
+
+		let door_3_0 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/doors/door-3-0.png"), context)
+			.unwrap();
+		let door_3_1 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/doors/door-3-1.png"), context)
+			.unwrap();
+		let door_3_2 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/doors/door-3-2.png"), context)
+			.unwrap();
+
 		Self {
 			tile_up,
 			tile_down,
 			corner_s,
 			corner_b,
+			door_2_0,
+			door_2_1,
+			door_3_0,
+			door_3_1,
+			door_3_2,
 		}
 	}
 }
