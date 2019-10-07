@@ -182,6 +182,9 @@ impl TransitionScene {
 
 impl scene::Scene<World, input::Event> for TransitionScene {
 	fn update(&mut self, world: &mut World, context: &mut ggez::Context) -> scenes::Switch {
+		let dt = timer::duration_to_f64(timer::delta(context)) as f32;
+		self.update_frame(dt);
+
 		if self.should_switch_next {
 			self.should_switch_next = false;
 
@@ -208,9 +211,6 @@ impl scene::Scene<World, input::Event> for TransitionScene {
 
 	fn draw(&mut self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
 		let position = world.center();
-
-		let dt = timer::duration_to_f64(timer::delta(context)) as f32;
-		self.update_frame(dt);
 
 		if self.is_animated() {
 			if let SceneType::Animated(_animated) = &self.scene {
