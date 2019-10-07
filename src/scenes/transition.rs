@@ -34,12 +34,15 @@ impl AnimatedScreenInfo {
 }
 
 struct AnimatedScreen {
-	images: Vec<warmy::Res<resources::Image>>,
+	images: Vec<Option<warmy::Res<resources::Image>>>,
 	timing: f32,
+
+	image_count: usize,
+	folder_name: String,
 }
 
 impl AnimatedScreen {
-	fn load<P: AsRef<path::Path>>(world: &mut World, context: &mut ggez::Context, file: P) -> ggez::GameResult<Option<Self>> {
+	fn load<P: AsRef<path::Path>>(_world: &mut World, context: &mut ggez::Context, file: P) -> ggez::GameResult<Option<Self>> {
 		if !ggez::filesystem::exists(context, &file) {
 			return Ok(None)
 		}
@@ -55,18 +58,16 @@ impl AnimatedScreen {
 
 		let mut images = Vec::new();
 
-		for index in 0..info.image_count {
-			let image_path = format!("/images/animated/{}/{:03}.png", info.folder_name, index);
-
-			let image = world.resources
-				.get::<resources::Image>(&resources::ResourceKey::from_path(&image_path), context)
-				.unwrap();
-			images.push(image);
+		for _ in 0..info.image_count {
+			images.push(None);
 		}
 
 		let ret = Self {
 			images,
 			timing,
+
+			image_count: info.image_count,
+			folder_name: info.folder_name.to_owned(),
 		};
 
 		Ok(Some(ret))
@@ -129,15 +130,26 @@ impl TransitionScene {
 				self.extra_dt -= animated.timing;
 
 				self.current_image += 1;
-				if self.current_image == animated.images.len() {
+				if self.current_image == animated.image_count {
 					self.current_image = 0;
 				}
 			}
 		}
 	}
 
-	fn current(&self) -> &warmy::Res<resources::Image> {
-		if let SceneType::Animated(animated) = &self.scene {
+	fn current(&mut self, world: &mut World, context: &mut ggez::Context) -> &Option<warmy::Res<resources::Image>> {
+		if let SceneType::Animated(animated) = &mut self.scene {
+			if animated.images[self.current_image].is_none() {
+				let image_path = format!("/images/animated/{}/{:03}.png", animated.folder_name, self.current_image);
+
+				let image = world.resources
+					.get::<resources::Image>(&resources::ResourceKey::from_path(&image_path), context)
+					.unwrap();
+				animated.images[self.current_image] = Some(image);
+
+				// info!("loaded frame {:03}", self.current_image);
+			}
+
 			&animated.images[self.current_image]
 		}
 		else {
@@ -189,9 +201,11 @@ impl scene::Scene<World, input::Event> for TransitionScene {
 
 		if self.is_animated() {
 			if let SceneType::Animated(_animated) = &self.scene {
+				let image = self.current(world, context);
+
 				graphics::draw(
 					context,
-					&self.current().borrow().0,
+					&image.as_ref().unwrap().borrow().0,
 					graphics::DrawParam::default()
 						.dest(position)
 						.offset(Point2::new(0.5, 0.5))
