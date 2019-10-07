@@ -1,4 +1,5 @@
 use crate::input;
+use crate::level_configuration::{LevelConfiguration};
 use crate::lighting::{TileLightTracing};
 use crate::resources;
 use crate::scenes;
@@ -30,6 +31,7 @@ pub struct LabyrinthScene {
 	quit: bool,
 
 	level: warmy::Res<resources::Level>,
+	level_configuration: LevelConfiguration,
 
 	player_image: warmy::Res<resources::Image>,
 
@@ -55,6 +57,8 @@ impl LabyrinthScene {
 		let level = world.resources
 			.get::<resources::Level>(&resources::ResourceKey::from_path(&format!("/levels/{}.toml", level_name)), context)
 			.unwrap();
+		let level_configuration = LevelConfiguration::new(&level.borrow(), resources::TILE_COUNT, resources::CORNER_COUNT);
+
 		let player_image = world.resources
 			.get::<resources::Image>(&resources::ResourceKey::from_path("/images/character-16x16.png"), context)
 			.unwrap();
@@ -84,6 +88,7 @@ impl LabyrinthScene {
 			quit: false,
 
 			level,
+			level_configuration,
 
 			player_image,
 
@@ -260,7 +265,7 @@ impl LabyrinthScene {
 
 		if true {
 			for tile in target_tiles.iter() {
-				tile.draw(context, &self.tiles)?;
+				tile.draw(context, &self.tiles, &self.level_configuration)?;
 			}
 		}
 

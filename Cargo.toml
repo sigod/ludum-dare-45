@@ -13,6 +13,7 @@ fern = {version = "0.5", features = ["colored"] }
 ggez = "0.5"
 ggez-goodies = "0.5"
 log = "0.4"
+rand = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 specs = "0.15"
 specs-derive = "0.4"

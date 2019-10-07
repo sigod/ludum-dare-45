@@ -7,6 +7,9 @@ use serde::{Deserialize};
 use std::path;
 use warmy;
 
+pub const TILE_COUNT: usize = 8;
+pub const CORNER_COUNT: usize = 2;
+
 fn warmy_to_ggez_path(path: &path::Path, root: &path::Path) -> path::PathBuf {
     let stripped_path = path
         .strip_prefix(root)
@@ -175,9 +178,6 @@ pub struct TilePack {
 
 impl TilePack {
 	pub fn load(world: &mut World, context: &mut ggez::Context, level_key: &str) -> Self {
-		const TILE_COUNT: usize = 8;
-		const CORNER_COUNT: usize = 2;
-
 		let mut tile_up = Vec::new();
 		let mut tile_down = Vec::new();
 

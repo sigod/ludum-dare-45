@@ -1,3 +1,4 @@
+use crate::level_configuration::{LevelConfiguration};
 use crate::resources;
 use crate::types::{Point2, Rect};
 use ggez::graphics;
@@ -257,15 +258,18 @@ impl TileLightTracing {
 		None
 	}
 
-	pub fn draw(&self, context: &mut ggez::Context, tiles: &resources::TilePack) -> ggez::GameResult<()> {
+	pub fn draw(&self, context: &mut ggez::Context, tiles: &resources::TilePack, level_configuration: &LevelConfiguration) -> ggez::GameResult<()> {
 		let state = self.get_light_state();
+
+		let side_n = level_configuration.get_side(self.tile_id);
+		let corner_n = level_configuration.get_corner(self.tile_id);
 
 		match state {
 			TileLightState::None => {},
 			TileLightState::Up => {
 				graphics::draw(
 					context,
-					&tiles.tile_up[0].borrow().0,
+					&tiles.tile_up[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
@@ -274,7 +278,7 @@ impl TileLightTracing {
 			TileLightState::Right => {
 				graphics::draw(
 					context,
-					&tiles.tile_up[0].borrow().0,
+					&tiles.tile_up[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(90.0 * PI / 180.0)
@@ -284,7 +288,7 @@ impl TileLightTracing {
 			TileLightState::Down => {
 				graphics::draw(
 					context,
-					&tiles.tile_down[0].borrow().0,
+					&tiles.tile_down[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
@@ -293,7 +297,7 @@ impl TileLightTracing {
 			TileLightState::Left => {
 				graphics::draw(
 					context,
-					&tiles.tile_down[0].borrow().0,
+					&tiles.tile_down[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(90.0 * PI / 180.0)
@@ -304,7 +308,7 @@ impl TileLightTracing {
 			TileLightState::UpLeftSmall => {
 				graphics::draw(
 					context,
-					&tiles.corner_s[0].borrow().0,
+					&tiles.corner_s[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(90.0 * PI / 180.0)
@@ -314,7 +318,7 @@ impl TileLightTracing {
 			TileLightState::UpRightSmall => {
 				graphics::draw(
 					context,
-					&tiles.corner_s[0].borrow().0,
+					&tiles.corner_s[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(180.0 * PI / 180.0)
@@ -324,7 +328,7 @@ impl TileLightTracing {
 			TileLightState::DownLeftSmall => {
 				graphics::draw(
 					context,
-					&tiles.corner_s[0].borrow().0,
+					&tiles.corner_s[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
@@ -333,7 +337,7 @@ impl TileLightTracing {
 			TileLightState::DownRightSmall => {
 				graphics::draw(
 					context,
-					&tiles.corner_s[0].borrow().0,
+					&tiles.corner_s[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(270.0 * PI / 180.0)
@@ -343,7 +347,7 @@ impl TileLightTracing {
 			TileLightState::UpLeftBig => {
 				graphics::draw(
 					context,
-					&tiles.corner_b[0].borrow().0,
+					&tiles.corner_b[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(270.0 * PI / 180.0)
@@ -353,7 +357,7 @@ impl TileLightTracing {
 			TileLightState::UpRightBig => {
 				graphics::draw(
 					context,
-					&tiles.corner_b[0].borrow().0,
+					&tiles.corner_b[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
@@ -362,7 +366,7 @@ impl TileLightTracing {
 			TileLightState::DownLeftBig => {
 				graphics::draw(
 					context,
-					&tiles.corner_b[0].borrow().0,
+					&tiles.corner_b[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(180.0 * PI / 180.0)
@@ -372,7 +376,7 @@ impl TileLightTracing {
 			TileLightState::DownRightBig => {
 				graphics::draw(
 					context,
-					&tiles.corner_b[0].borrow().0,
+					&tiles.corner_b[corner_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.rotation(90.0 * PI / 180.0)
@@ -382,7 +386,7 @@ impl TileLightTracing {
 			TileLightState::Full => {
 				graphics::draw(
 					context,
-					&tiles.tile_up[0].borrow().0,
+					&tiles.tile_up[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
@@ -390,7 +394,7 @@ impl TileLightTracing {
 
 				graphics::draw(
 					context,
-					&tiles.tile_down[0].borrow().0,
+					&tiles.tile_down[side_n].borrow().0,
 					graphics::DrawParam::default()
 						.dest(Point2::new(self.rect.x + self.rect.w / 2.0, self.rect.y + self.rect.h / 2.0))
 						.offset(Point2::new(0.5, 0.5))
