@@ -1,4 +1,4 @@
-use crate::types::Error;
+use crate::types::{Error, Point2};
 use crate::world::World;
 use ggez::{self, graphics};
 use log::{debug, info};
@@ -236,12 +236,32 @@ impl TilePack {
 //
 //
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
+pub enum EntityType {
+	Shard0,
+	Shard1,
+	Shard2,
+	Shard3,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Entity {
+	pub x: f32,
+	pub y: f32,
+	pub entity: EntityType,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Level {
 	pub walls: Vec<Wall>,
 	pub width: usize,
 	pub height: usize,
 	pub key: String,
+
+	pub player_x: f32,
+	pub player_y: f32,
+
+	pub entities: Vec<Entity>,
 }
 
 impl Level {
@@ -264,29 +284,14 @@ impl Level {
 		Ok(level)
 	}
 
-	pub fn create_test() -> Self {
-		let width = 3;
-		let height = 3;
-		let mut walls = Vec::new();
+	pub fn get_offset(&self, screen_center: Point2, tile_size: (f32, f32)) -> Point2 {
+		let level_width = self.width as f32 * tile_size.0;
+		let level_height = self.height as f32 * tile_size.1;
 
-		walls.push(Wall::S);
-		walls.push(Wall::S);
-		walls.push(Wall::S);
+		let x = screen_center.x - level_width / 2.0;
+		let y = screen_center.y - level_height / 2.0;
 
-		walls.push(Wall::S);
-		walls.push(Wall::N);
-		walls.push(Wall::S);
-
-		walls.push(Wall::S);
-		walls.push(Wall::S);
-		walls.push(Wall::S);
-
-		Self {
-			walls,
-			width,
-			height,
-			key: "none".to_owned(),
-		}
+		Point2::new(x, y)
 	}
 }
 

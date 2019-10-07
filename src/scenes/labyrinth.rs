@@ -57,8 +57,12 @@ impl LabyrinthScene {
 			.unwrap();
 
 		let tiles = resources::TilePack::load(world, context, &level.borrow().key);
+		let offset = level.borrow().get_offset(world.center(), (WALL_SIZE, WALL_SIZE));
 
-		let player_coords = world.center();
+		let player_coords = Point2::new(
+			level.borrow().player_x * WALL_SIZE + offset.x,
+			level.borrow().player_y * WALL_SIZE + offset.y,
+		);
 		let mut dispatcher = Self::register_systems();
 
 		Self {
@@ -88,16 +92,7 @@ impl LabyrinthScene {
 	}
 
 	fn get_level_offset(&self, world: &mut World) -> Point2 {
-		let screen_center = world.center();
-		let level = &self.level.borrow();
-
-		let level_width = level.width as f32 * WALL_SIZE;
-		let level_height = level.height as f32 * WALL_SIZE;
-
-		let x = screen_center.x - level_width / 2.0;
-		let y = screen_center.y - level_height / 2.0;
-
-		Point2::new(x, y)
+		self.level.borrow().get_offset(world.center(), (WALL_SIZE, WALL_SIZE))
 	}
 
 	// fn draw_level(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
