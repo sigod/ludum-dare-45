@@ -43,6 +43,7 @@ pub struct LabyrinthScene {
 	player_direction: Vector2,
 	player_light_radius: f32,
 
+	shards_collected: usize,
 	are_doors_activated: bool,
 	entered_door: bool,
 	entities_visibility: Vec<bool>,
@@ -72,6 +73,8 @@ impl LabyrinthScene {
 		);
 		let player_light_radius = level.borrow().player_light_radius;
 
+		let are_doors_activated = level.borrow().shards_for_door_activation == 0;
+
 		let entities_visibility = {
 			let mut ret = Vec::new();
 
@@ -100,7 +103,8 @@ impl LabyrinthScene {
 			player_direction: Vector2::zero(),
 			player_light_radius,
 
-			are_doors_activated: false,
+			shards_collected: 0,
+			are_doors_activated,
 			entered_door: false,
 			entities_visibility,
 
@@ -117,41 +121,6 @@ impl LabyrinthScene {
 	fn get_level_offset(&self, world: &mut World) -> Point2 {
 		self.level.borrow().get_offset(world.center(), (WALL_SIZE, WALL_SIZE))
 	}
-
-	// fn draw_level(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
-	// 	let offset = self.get_level_offset(world);
-	// 	let level = &self.level.borrow();
-
-	// 	for i in 0..level.width {
-	// 		for j in 0..level.height {
-	// 			match level.get(i, j) {
-	// 				resources::Wall::N => {},
-	// 				resources::Wall::S => {
-	// 					let x = offset.x + i as f32 * WALL_SIZE;
-	// 					let y = offset.y + j as f32 * WALL_SIZE;
-
-	// 					graphics::draw(
-	// 						context,
-	// 						&self.tiles.tile_up[0].borrow().0,
-	// 						graphics::DrawParam::default()
-	// 							.dest(Point2::new(x, y))
-	// 					)?;
-
-	// 					graphics::draw(
-	// 						context,
-	// 						&self.tiles.tile_down[0].borrow().0,
-	// 						graphics::DrawParam::default()
-	// 							.dest(Point2::new(x, y))
-	// 					)?;
-	// 				},
-	// 				// TODO: Draw doors.
-	// 				_ => {},
-	// 			};
-	// 		}
-	// 	}
-
-	// 	Ok(())
-	// }
 
 	fn draw_light(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
 		// select tiles that are in player's radius
@@ -310,46 +279,6 @@ impl LabyrinthScene {
 		self.level.borrow().walls[tile_id].clone()
 	}
 
-	fn get_tile_rect(&self, tile_id: usize) -> Rect {
-		debug_assert!(tile_id < self.level.borrow().walls.len());
-
-		let level = &self.level.borrow();
-
-		let x = tile_id % level.width;
-		let y = tile_id / level.width;
-
-		Rect::new(x as f32 * WALL_SIZE, y as f32 * WALL_SIZE, WALL_SIZE, WALL_SIZE)
-	}
-
-	fn get_neighbor_id(&self, tile_id: usize, neighbor_n: usize) -> Option<usize> {
-		debug_assert!(tile_id < self.level.borrow().walls.len());
-		debug_assert!(neighbor_n < 8);
-
-		let level = &self.level.borrow();
-
-		let id = tile_id as isize;
-		let width = level.width as isize;
-
-		let possible_id = match neighbor_n {
-			0 => id - width,
-			1 => id - width + 1,
-			2 => id + 1,
-			3 => id + width + 1,
-			4 => id + width,
-			5 => id + width - 1,
-			6 => id - 1,
-			7 => id - width - 1,
-			_ => panic!("Invalid neighbor_n: {}!", neighbor_n),
-		};
-
-		if possible_id < 0 || possible_id >= level.walls.len() as isize {
-			None
-		}
-		else {
-			Some(possible_id as usize)
-		}
-	}
-
 	fn move_player(&mut self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
 		let direction = self.player_direction;
 
@@ -406,7 +335,11 @@ impl LabyrinthScene {
 						self.player_light_radius = PLAYER_LIGHT_RADIUS;
 					},
 					resources::PickUpEffect::ActivateDoors => {
-						self.are_doors_activated = true;
+						self.shards_collected += 1;
+
+						if self.shards_collected >= level.shards_for_door_activation {
+							self.are_doors_activated = true;
+						}
 					},
 				}
 

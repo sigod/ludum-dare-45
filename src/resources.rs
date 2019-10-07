@@ -300,6 +300,8 @@ pub struct Level {
 	pub player_y: f32,
 	pub player_light_radius: f32,
 
+	pub shards_for_door_activation: usize,
+
 	pub entities: Vec<Entity>,
 }
 
