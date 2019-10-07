@@ -1,17 +1,16 @@
-use crate::components as c;
 use crate::input;
 use crate::lighting::{TileLightTracing};
 use crate::resources;
 use crate::scenes;
-use crate::systems::*;
-use crate::types::{self, Point2, Rect, Vector2};
+use crate::types::{Point2, Rect, Vector2};
 use crate::util;
 use crate::world::World;
+use ggez::audio::SoundSource;
 use ggez::graphics;
 use ggez;
 use ggez_goodies::scene;
 use log::{debug, info, warn};
-use specs::{self, Join};
+// use specs::{self, Join};
 use std::f32::consts::PI;
 use warmy;
 
@@ -22,13 +21,16 @@ const PLAYER_MAX_SPEED: f32 = 5.0;
 const PLAYER_MAX_ACCELERATION: f32 = 5.0;
 const PLAYER_ACCELERATION_CONST: f32 = 2.0;
 const PLAYER_COLLISION_STEPS: usize = 4;
+const PLAYER_LIGHT_RADIUS: f32 = 100.0;
 
 const RAY_COUNT: usize = 360;
 const STEP_DISTANCE: f32 = 8.0;
 
 pub struct LabyrinthScene {
 	quit: bool,
+
 	level: warmy::Res<resources::Level>,
+
 	player_image: warmy::Res<resources::Image>,
 
 	tiles: resources::TilePack,
@@ -41,16 +43,17 @@ pub struct LabyrinthScene {
 
 	are_doors_activated: bool,
 	entered_door: bool,
+	entities_visibility: Vec<bool>,
 
 	dispatcher: specs::Dispatcher<'static, 'static>,
 }
 
 impl LabyrinthScene {
-	pub fn new(context: &mut ggez::Context, world: &mut World) -> Self {
+	pub fn new(world: &mut World, context: &mut ggez::Context, level_name: &str) -> Self {
 		// TODO: Don't use paths here.
 
 		let level = world.resources
-			.get::<resources::Level>(&resources::ResourceKey::from_path("/level-1.toml"), context)
+			.get::<resources::Level>(&resources::ResourceKey::from_path(&format!("/levels/{}.toml", level_name)), context)
 			.unwrap();
 		let player_image = world.resources
 			.get::<resources::Image>(&resources::ResourceKey::from_path("/images/character-16x16.png"), context)
@@ -65,11 +68,23 @@ impl LabyrinthScene {
 		);
 		let player_light_radius = level.borrow().player_light_radius;
 
+		let entities_visibility = {
+			let mut ret = Vec::new();
+
+			for _ in level.borrow().entities.iter() {
+				ret.push(true);
+			}
+
+			ret
+		};
+
 		let mut dispatcher = Self::register_systems();
 
 		Self {
 			quit: false,
+
 			level,
+
 			player_image,
 
 			tiles,
@@ -80,8 +95,9 @@ impl LabyrinthScene {
 			player_direction: Vector2::zero(),
 			player_light_radius,
 
-			are_doors_activated: true,
+			are_doors_activated: false,
 			entered_door: false,
+			entities_visibility,
 
 			dispatcher,
 		}
@@ -363,6 +379,40 @@ impl LabyrinthScene {
 		Ok(())
 	}
 
+	fn pick_up_items(&mut self, world: &mut World, _context: &mut ggez::Context) -> ggez::GameResult<()> {
+		let offset = self.get_level_offset(world);
+		let level = &self.level.borrow();
+
+		for (index, entity) in level.entities.iter().enumerate() {
+			if !self.entities_visibility[index] {
+				continue;
+			}
+
+			let position = Point2::new(
+				entity.x * WALL_SIZE + offset.x,
+				entity.y * WALL_SIZE + offset.y,
+			);
+
+			let distance = util::get_distance(position, self.player_coords);
+
+			if distance < (WALL_SIZE + PLAYER_WIDTH) / 2.0 {
+				match entity.effect {
+					resources::PickUpEffect::IncreasePlayerLightRadius => {
+						self.player_light_radius = PLAYER_LIGHT_RADIUS;
+					},
+					resources::PickUpEffect::ActivateDoors => {
+						self.are_doors_activated = true;
+					},
+				}
+
+				self.entities_visibility[index] = false;
+				let _ = world.sound_pick_up.play_detached();
+			}
+		}
+
+		Ok(())
+	}
+
 	fn move_player_with_collisions(&mut self, world: &mut World, context: &mut ggez::Context, movement_v: Vector2) -> ggez::GameResult<()> {
 		let mut current = Rect::new(
 			self.player_coords.x - PLAYER_WIDTH / 2.0,
@@ -416,6 +466,7 @@ impl LabyrinthScene {
 				if wall.is_door() {
 					if self.are_doors_activated {
 						self.entered_door = true;
+						let _ = world.sound_door.play_detached();
 					}
 					else {
 						return true;
@@ -491,7 +542,11 @@ impl LabyrinthScene {
 		let offset = self.get_level_offset(world);
 		let level = &self.level.borrow();
 
-		for entity in level.entities.iter() {
+		for (index, entity) in level.entities.iter().enumerate() {
+			if !self.entities_visibility[index] {
+				continue;
+			}
+
 			let position = Point2::new(
 				entity.x * WALL_SIZE + offset.x,
 				entity.y * WALL_SIZE + offset.y,
@@ -505,6 +560,7 @@ impl LabyrinthScene {
 					resources::EntityType::Shard1 => &self.tiles.shard_1,
 					resources::EntityType::Shard2 => &self.tiles.shard_2,
 					resources::EntityType::Shard3 => &self.tiles.shard_3,
+					resources::EntityType::Shard4 => &self.tiles.shard_4,
 				};
 
 				graphics::draw(
@@ -597,26 +653,20 @@ impl LabyrinthScene {
 	// }
 }
 
-fn center(rect: &Rect) -> Point2 {
-	Point2::new(
-		rect.x + rect.w,
-		rect.y + rect.h,
-	)
-}
-
 impl scene::Scene<World, input::Event> for LabyrinthScene {
 	fn update(&mut self, world: &mut World, context: &mut ggez::Context) -> scenes::Switch {
 		self.dispatcher.dispatch(&mut world.specs_world);
 
 		self.move_player(world, context)
 			.expect("Failed to move player...");
+		self.pick_up_items(world, context)
+			.expect("Failed to pick up items...");
 
 		if self.quit {
 			scene::SceneSwitch::Pop
 		}
 		else if self.entered_door {
-			// TODO: Transition to next level.
-			scene::SceneSwitch::Pop
+			world.next_scene(context)
 		}
 		else {
 			scene::SceneSwitch::None

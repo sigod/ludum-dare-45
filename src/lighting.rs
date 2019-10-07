@@ -1,5 +1,5 @@
 use crate::resources;
-use crate::types::{self, Point2, Rect, Vector2};
+use crate::types::{Point2, Rect};
 use ggez::graphics;
 use std::f32::consts::PI;
 

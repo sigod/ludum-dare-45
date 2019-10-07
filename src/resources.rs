@@ -1,6 +1,7 @@
 use crate::types::{Error, Point2};
 use crate::world::World;
 use ggez::{self, graphics};
+// use ggez_goodies::scene;
 use log::{debug, info};
 use serde::{Deserialize};
 use std::path;
@@ -169,6 +170,7 @@ pub struct TilePack {
 	pub shard_1: warmy::Res<Image>,
 	pub shard_2: warmy::Res<Image>,
 	pub shard_3: warmy::Res<Image>,
+	pub shard_4: warmy::Res<Image>,
 }
 
 impl TilePack {
@@ -235,6 +237,9 @@ impl TilePack {
 		let shard_3 = world.resources
 			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-3.png"), context)
 			.unwrap();
+		let shard_4 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-4.png"), context)
+			.unwrap();
 
 		Self {
 			tile_up,
@@ -251,6 +256,7 @@ impl TilePack {
 			shard_1,
 			shard_2,
 			shard_3,
+			shard_4,
 		}
 	}
 }
@@ -265,6 +271,13 @@ pub enum EntityType {
 	Shard1,
 	Shard2,
 	Shard3,
+	Shard4,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum PickUpEffect {
+	IncreasePlayerLightRadius,
+	ActivateDoors,
 }
 
 #[derive(Debug, Deserialize)]
@@ -273,6 +286,7 @@ pub struct Entity {
 	pub x: f32,
 	pub y: f32,
 	pub light_radius: f32,
+	pub effect: PickUpEffect,
 }
 
 #[derive(Debug, Deserialize)]
@@ -337,5 +351,44 @@ impl warmy::Load<ggez::Context, ResourceKey> for Level {
 					.map_err(|e| Error::GgezError(e))
 			},
 		}
+	}
+}
+
+//
+//
+//
+
+#[derive(Clone, Debug, Deserialize)]
+pub enum TransitionType {
+	ToLevel,
+	ToScreen,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Transition {
+	pub name: String,
+	pub transition_type: TransitionType,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TransitionList {
+	pub transitions: Vec<Transition>,
+
+	#[serde(skip)]
+	pub current_n: usize,
+}
+
+impl TransitionList {
+	pub fn load<P: AsRef<path::Path>>(context: &mut ggez::Context, file: P) -> ggez::GameResult<Self> {
+		use std::io::Read;
+
+		let mut content = String::new();
+		let mut reader = ggez::filesystem::open(context, file)?;
+		let _ = reader.read_to_string(&mut content)?;
+
+		let list: Self = toml::from_str(&content)
+			.map_err(|e| ggez::error::GameError::ResourceLoadError(e.to_string()))?;
+
+		Ok(list)
 	}
 }

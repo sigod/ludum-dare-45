@@ -28,10 +28,16 @@ struct MainState {
 
 impl MainState {
 	fn new(context: &mut Context, resource_path: &path::Path) -> Self {
-		let world = world::World::new(resource_path, DIMENSIONS);
+		use crate::resources::TransitionList;
+
+		let transition_list = TransitionList::load(context, "/transitions.toml")
+			.expect("Couldn't load transition list!");
+
+		let world = world::World::new(context, resource_path, transition_list, DIMENSIONS);
 		let mut scenes = scenes::Stack::new(context, world);
-		let initial_scene = Box::new(scenes::main_menu::MainMenuScene::new(context, &mut scenes.world));
-		scenes.push(initial_scene);
+
+		let initial_scene = scenes.world.initial_scene(context);
+		scenes.push(Box::new(initial_scene));
 
 		Self {
 			scenes,
@@ -47,6 +53,9 @@ impl event::EventHandler for MainState {
 		}
 		self.scenes.world.resources.sync(context);
 		self.scenes.world.input.update(timer::duration_to_f64(timer::delta(context)) as f32);
+
+		use ggez::audio::SoundSource;
+		let _ = self.scenes.world.sound_background.play_later();
 
 		if self.scenes.world.exit {
 			info!("Exiting due to world quit flag.");
