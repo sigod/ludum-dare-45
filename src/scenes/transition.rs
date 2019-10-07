@@ -16,6 +16,7 @@ struct AnimatedScreenInfo {
 	total_time: bool,
 	folder_name: String,
 	image_count: usize,
+	looped: bool,
 }
 
 impl AnimatedScreenInfo {
@@ -36,6 +37,7 @@ impl AnimatedScreenInfo {
 struct AnimatedScreen {
 	images: Vec<Option<warmy::Res<resources::Image>>>,
 	timing: f32,
+	looped: bool,
 
 	image_count: usize,
 	folder_name: String,
@@ -65,6 +67,7 @@ impl AnimatedScreen {
 		let ret = Self {
 			images,
 			timing,
+			looped: info.looped,
 
 			image_count: info.image_count,
 			folder_name: info.folder_name.to_owned(),
@@ -81,6 +84,7 @@ enum SceneType {
 
 pub struct TransitionScene {
 	is_main: bool,
+	looped: bool,
 
 	scene: SceneType,
 	current_image: usize,
@@ -95,7 +99,11 @@ impl TransitionScene {
 		let animated = AnimatedScreen::load(world, context, &format!("/animated/{}.toml", screen))
 			.expect("Unable to load animated screen!");
 
+		let mut looped = false;
+
 		let scene = if let Some(animated) = animated {
+			looped = animated.looped;
+
 			SceneType::Animated(animated)
 		}
 		else {
@@ -108,6 +116,7 @@ impl TransitionScene {
 
 		Self {
 			is_main,
+			looped,
 
 			scene,
 			current_image: 0,
@@ -132,6 +141,10 @@ impl TransitionScene {
 				self.current_image += 1;
 				if self.current_image == animated.image_count {
 					self.current_image = 0;
+
+					if !self.looped {
+						self.should_switch_next = true;
+					}
 				}
 			}
 		}
