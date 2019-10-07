@@ -49,9 +49,17 @@ impl MainState {
 
 impl event::EventHandler for MainState {
 	fn update(&mut self, context: &mut Context) -> GameResult<()> {
+		let mut has_updated = false;
+
 		while timer::check_update_time(context, DESIRED_FPS) {
+			if has_updated {
+				continue;
+			}
+
 			self.scenes.update(context);
+			has_updated = true;
 		}
+
 		self.scenes.world.resources.sync(context);
 		self.scenes.world.input.update(timer::duration_to_f64(timer::delta(context)) as f32);
 

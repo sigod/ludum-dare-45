@@ -8,6 +8,7 @@ use crate::util;
 use crate::world::World;
 use ggez::audio::SoundSource;
 use ggez::graphics;
+use ggez::timer;
 use ggez;
 use ggez_goodies::scene;
 use log::{debug, info, warn};
@@ -18,9 +19,9 @@ use warmy;
 const WALL_SIZE: f32 = 32.0;
 const PLAYER_WIDTH: f32 = 16.0;
 const PLAYER_HEIGHT: f32 = 16.0;
-const PLAYER_MAX_SPEED: f32 = 5.0;
-const PLAYER_MAX_ACCELERATION: f32 = 5.0;
-const PLAYER_ACCELERATION_CONST: f32 = 2.0;
+const PLAYER_MAX_SPEED: f32 = 5.0 * 60.0;
+const PLAYER_MAX_ACCELERATION: f32 = 5.0 * 60.0;
+const PLAYER_ACCELERATION_CONST: f32 = 2.0 * 60.0;
 const PLAYER_COLLISION_STEPS: usize = 4;
 const PLAYER_LIGHT_RADIUS: f32 = 100.0;
 
@@ -282,7 +283,9 @@ impl LabyrinthScene {
 	fn move_player(&mut self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
 		let direction = self.player_direction;
 
-		// let dt = timer::duration_to_f64(timer::delta(context)) as f32;
+		let dt = timer::duration_to_f64(timer::delta(context)) as f32;
+		// let fps = 1000 / timer::average_delta(context).as_millis();
+		// info!("fps: {}, dt: {}", fps, dt);
 
 		if direction.length() > 0.0 {
 			// moving
@@ -298,7 +301,7 @@ impl LabyrinthScene {
 				self.player_speed = PLAYER_MAX_SPEED;
 			}
 
-			let movement_v = Vector2::new(direction.x * self.player_speed, direction.y * self.player_speed);
+			let movement_v = Vector2::new(direction.x * self.player_speed, direction.y * self.player_speed) * dt;
 
 			self.move_player_with_collisions(world, context, movement_v)?;
 		}
