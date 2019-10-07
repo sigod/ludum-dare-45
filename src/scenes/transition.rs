@@ -56,7 +56,7 @@ impl AnimatedScreen {
 		let mut images = Vec::new();
 
 		for index in 0..info.image_count {
-			let image_path = format!("/images/animated/{}/{:02}.png", info.folder_name, index);
+			let image_path = format!("/images/animated/{}/{:03}.png", info.folder_name, index);
 
 			let image = world.resources
 				.get::<resources::Image>(&resources::ResourceKey::from_path(&image_path), context)
