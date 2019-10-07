@@ -159,6 +159,7 @@ fn main() {
 	let (context, ev) = &mut cb.build().unwrap();
 
 	// graphics::set_blend_mode(context, graphics::BlendMode::Alpha).unwrap();
+	ggez::input::mouse::set_cursor_hidden(context, true);
 
 	info!("main: screen_coordinates: {:?}", graphics::screen_coordinates(context));
 	// TODO: Fix scale issue, try https://docs.rs/ggez/0.5.1/ggez/graphics/fn.set_screen_coordinates.html
