@@ -63,6 +63,8 @@ impl LabyrinthScene {
 			level.borrow().player_x * WALL_SIZE + offset.x,
 			level.borrow().player_y * WALL_SIZE + offset.y,
 		);
+		let player_light_radius = level.borrow().player_light_radius;
+
 		let mut dispatcher = Self::register_systems();
 
 		Self {
@@ -76,7 +78,7 @@ impl LabyrinthScene {
 			player_speed: 0.0,
 			player_acceleration: 0.0,
 			player_direction: Vector2::zero(),
-			player_light_radius: 100.0,
+			player_light_radius,
 
 			are_doors_activated: true,
 			entered_door: false,
@@ -156,11 +158,7 @@ impl LabyrinthScene {
 						offset.y + j as f32 * WALL_SIZE + WALL_SIZE / 2.0,
 					);
 
-					let distance = Vector2::new(
-							tile_position.x - self.player_coords.x,
-							tile_position.y - self.player_coords.y,
-						)
-						.length();
+					let distance = util::get_distance(tile_position, self.player_coords);
 
 					if distance <= self.player_light_radius + WALL_SIZE {
 						tiles.push(TileLightTracing::new(tile_id, tile_position, WALL_SIZE, WALL_SIZE));
@@ -489,6 +487,39 @@ impl LabyrinthScene {
 		Ok(())
 	}
 
+	fn draw_shards(&self, world: &mut World, context: &mut ggez::Context) -> ggez::GameResult<()> {
+		let offset = self.get_level_offset(world);
+		let level = &self.level.borrow();
+
+		for entity in level.entities.iter() {
+			let position = Point2::new(
+				entity.x * WALL_SIZE + offset.x,
+				entity.y * WALL_SIZE + offset.y,
+			);
+
+			let distance = util::get_distance(position, self.player_coords);
+
+			if distance <= self.player_light_radius || distance <= entity.light_radius {
+				let image = match entity.entity_type {
+					resources::EntityType::Shard0 => &self.tiles.shard_0,
+					resources::EntityType::Shard1 => &self.tiles.shard_1,
+					resources::EntityType::Shard2 => &self.tiles.shard_2,
+					resources::EntityType::Shard3 => &self.tiles.shard_3,
+				};
+
+				graphics::draw(
+					context,
+					&image.borrow().0,
+					graphics::DrawParam::default()
+						.dest(position)
+						.offset(Point2::new(0.5, 0.5))
+				)?;
+			}
+		}
+
+		Ok(())
+	}
+
 	// fn check_wall_collision_old(&mut self, _world: &mut World, context: &mut ggez::Context, object: Rect) -> ggez::GameResult<bool> {
 	// 	let offset = self.get_level_offset(context);
 
@@ -596,6 +627,7 @@ impl scene::Scene<World, input::Event> for LabyrinthScene {
 		// self.draw_level(world, context)?;
 		self.draw_light(world, context)?;
 		self.draw_doors(world, context)?;
+		self.draw_shards(world, context)?;
 		self.draw_player(context)?;
 
 		Ok(())

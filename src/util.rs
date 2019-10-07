@@ -1,4 +1,4 @@
-use crate::types::{Point2, Rect};
+use crate::types::{Point2, Rect, Vector2};
 use ggez;
 
 /// A couple handy re-exports from Euclid
@@ -41,6 +41,10 @@ pub fn setup_logging() {
 		.apply()
 		.expect("Could not init logging!");
 }
+
+pub fn get_distance(a: Point2, b: Point2) -> f32 {
+		Vector2::new(a.x - b.x, a.y - b.y).length()
+	}
 
 fn check_intersection(a: f32, aw: f32, b: f32, bw: f32) -> bool {
 	// info!("check_intersection: {} < {} + {} && {} < {} + {} = {}", a, b, bw, b, a, aw, a < b + bw && b < a + aw);

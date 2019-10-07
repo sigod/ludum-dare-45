@@ -164,6 +164,11 @@ pub struct TilePack {
 	pub door_3_0: warmy::Res<Image>,
 	pub door_3_1: warmy::Res<Image>,
 	pub door_3_2: warmy::Res<Image>,
+
+	pub shard_0: warmy::Res<Image>,
+	pub shard_1: warmy::Res<Image>,
+	pub shard_2: warmy::Res<Image>,
+	pub shard_3: warmy::Res<Image>,
 }
 
 impl TilePack {
@@ -218,6 +223,19 @@ impl TilePack {
 			.get::<Image>(&ResourceKey::from_path("/images/doors/door-3-2.png"), context)
 			.unwrap();
 
+		let shard_0 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-0.png"), context)
+			.unwrap();
+		let shard_1 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-1.png"), context)
+			.unwrap();
+		let shard_2 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-2.png"), context)
+			.unwrap();
+		let shard_3 = world.resources
+			.get::<Image>(&ResourceKey::from_path("/images/shards/shard-3.png"), context)
+			.unwrap();
+
 		Self {
 			tile_up,
 			tile_down,
@@ -228,6 +246,11 @@ impl TilePack {
 			door_3_0,
 			door_3_1,
 			door_3_2,
+
+			shard_0,
+			shard_1,
+			shard_2,
+			shard_3,
 		}
 	}
 }
@@ -246,9 +269,10 @@ pub enum EntityType {
 
 #[derive(Debug, Deserialize)]
 pub struct Entity {
+	pub entity_type: EntityType,
 	pub x: f32,
 	pub y: f32,
-	pub entity: EntityType,
+	pub light_radius: f32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -260,6 +284,7 @@ pub struct Level {
 
 	pub player_x: f32,
 	pub player_y: f32,
+	pub player_light_radius: f32,
 
 	pub entities: Vec<Entity>,
 }
