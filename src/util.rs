@@ -36,10 +36,13 @@ pub fn setup_logging() {
 		// env var for outputting to a file?
 		// Haven't needed it yet!
 		.chain(std::io::stdout())
-		// TODO: Log into file!
-		// .chain(fern::log_file("output.log").expect("Could not open log file!"))
+		.chain(fern::log_file("output.log").expect("Could not open log file!"))
 		.apply()
 		.expect("Could not init logging!");
+
+	std::panic::set_hook(Box::new(|panic_info| {
+		error!("{}", panic_info);
+	}));
 }
 
 pub fn get_distance(a: Point2, b: Point2) -> f32 {
