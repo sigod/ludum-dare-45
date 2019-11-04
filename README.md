@@ -3,7 +3,7 @@ This is a little game we've made for Ludum Dare 45.
 
 ![](https://static.jam.vg/raw/801/72/z/2988c.png)
 
-# Description
+# Story
 
 The code is obviously a mess. Be warned.
 
